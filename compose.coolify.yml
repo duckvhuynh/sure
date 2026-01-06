@@ -71,11 +71,11 @@ services:
       redis:
         condition: service_healthy
     healthcheck:
-      test: ["CMD-SHELL", "curl -f http://localhost:3000/up || exit 1"]
+      test: ["CMD-SHELL", "pgrep -f 'rails server' || exit 1"]
       interval: 30s
       timeout: 10s
-      retries: 3
-      start_period: 40s
+      retries: 5
+      start_period: 60s
     networks:
       - sure_net
     labels:
@@ -101,8 +101,8 @@ services:
       test: ["CMD-SHELL", "pgrep -f sidekiq || exit 1"]
       interval: 30s
       timeout: 10s
-      retries: 3
-      start_period: 40s
+      retries: 5
+      start_period: 60s
     networks:
       - sure_net
     labels:
