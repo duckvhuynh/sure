@@ -2,6 +2,15 @@
 
 This guide will help you setup, update, and maintain your self-hosted Sure application with Docker Compose. Docker Compose is the most popular and recommended way to self-host the Sure app.
 
+## Deployment Options
+
+Choose your preferred deployment method:
+
+- **[Manual Docker Compose](#setup-guide)** - Direct deployment on your server (this guide)
+- **[Coolify](./coolify.md)** - Automated deployment with Coolify (recommended for easier management)
+
+Coolify provides a user-friendly interface, automatic SSL, and easier updates. If you prefer a simpler deployment experience, check out our **[Coolify deployment guide](./coolify.md)**.
+
 ## Setup Guide
 
 Follow the guide below to get your app running.

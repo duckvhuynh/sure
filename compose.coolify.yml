@@ -1,0 +1,173 @@
+# ===========================================================================
+# Coolify Docker Compose Configuration
+# ===========================================================================
+#
+# Purpose:
+# --------
+#
+# This file is optimized for deploying Sure on Coolify.
+# 
+# Coolify Setup Instructions:
+# ---------------------------
+#
+# 1. In Coolify, create a new "Docker Compose" service
+# 2. Copy this file content into the compose configuration
+# 3. Set the following environment variables in Coolify:
+#    - SECRET_KEY_BASE (generate with: openssl rand -hex 64)
+#    - POSTGRES_PASSWORD (strong password for database)
+#    - POSTGRES_USER (default: sure_user)
+#    - POSTGRES_DB (default: sure_production)
+#    - OPENAI_ACCESS_TOKEN (optional, for AI features)
+# 4. Deploy!
+#
+# Important Notes:
+# ----------------
+#
+# - Coolify will automatically handle domains and SSL certificates
+# - Make sure to configure persistent volumes in Coolify UI
+# - Database backups should be configured in Coolify settings
+#
+
+x-db-env: &db_env
+  POSTGRES_USER: ${POSTGRES_USER:-sure_user}
+  POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-sure_password}
+  POSTGRES_DB: ${POSTGRES_DB:-sure_production}
+
+x-rails-env: &rails_env
+  <<: *db_env
+  SECRET_KEY_BASE: ${SECRET_KEY_BASE}
+  SELF_HOSTED: "true"
+  RAILS_FORCE_SSL: "false"
+  RAILS_ASSUME_SSL: "false"
+  DB_HOST: db
+  DB_PORT: 5432
+  REDIS_URL: redis://redis:6379/1
+  # NOTE: enabling OpenAI will incur costs when you use AI-related features.
+  # Make sure you have set appropriate spend limits on your OpenAI account.
+  OPENAI_ACCESS_TOKEN: ${OPENAI_ACCESS_TOKEN:-}
+  # Optional: Configure your own OpenAI-compatible endpoint
+  OPENAI_URI_BASE: ${OPENAI_URI_BASE:-}
+  OPENAI_MODEL: ${OPENAI_MODEL:-}
+  # Optional: Twelve Data API for market data
+  TWELVE_DATA_API_KEY: ${TWELVE_DATA_API_KEY:-}
+  # SimpleFIN configuration (optional)
+  SIMPLEFIN_DEBUG_RAW: ${SIMPLEFIN_DEBUG_RAW:-false}
+  SIMPLEFIN_INCLUDE_PENDING: ${SIMPLEFIN_INCLUDE_PENDING:-false}
+  # Onboarding state (open, closed, invite_only)
+  ONBOARDING_STATE: ${ONBOARDING_STATE:-open}
+
+services:
+  web:
+    image: ghcr.io/we-promise/sure:latest
+    container_name: sure_web
+    volumes:
+      - app-storage:/rails/storage
+    ports:
+      - "${PORT:-3000}:3000"
+    restart: unless-stopped
+    environment:
+      <<: *rails_env
+      PORT: 3000
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:3000/up || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    networks:
+      - sure_net
+    labels:
+      - "coolify.managed=true"
+      - "coolify.type=application"
+
+  worker:
+    image: ghcr.io/we-promise/sure:latest
+    container_name: sure_worker
+    command: bundle exec sidekiq
+    volumes:
+      - app-storage:/rails/storage
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      web:
+        condition: service_healthy
+    environment:
+      <<: *rails_env
+    healthcheck:
+      test: ["CMD-SHELL", "pgrep -f sidekiq || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    networks:
+      - sure_net
+    labels:
+      - "coolify.managed=true"
+      - "coolify.type=worker"
+
+  db:
+    image: postgres:16-alpine
+    container_name: sure_db
+    restart: unless-stopped
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    environment:
+      <<: *db_env
+      PGDATA: /var/lib/postgresql/data/pgdata
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    networks:
+      - sure_net
+    labels:
+      - "coolify.managed=true"
+      - "coolify.type=database"
+    # Security: Only expose to internal network
+    # ports:
+    #   - "5432:5432"  # Uncomment only if you need external access
+
+  redis:
+    image: redis:7-alpine
+    container_name: sure_redis
+    restart: unless-stopped
+    volumes:
+      - redis-data:/data
+    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    networks:
+      - sure_net
+    labels:
+      - "coolify.managed=true"
+      - "coolify.type=cache"
+    # Security: Only expose to internal network
+    # ports:
+    #   - "6379:6379"  # Uncomment only if you need external access
+
+volumes:
+  app-storage:
+    name: sure_storage
+  postgres-data:
+    name: sure_postgres_data
+  redis-data:
+    name: sure_redis_data
+
+networks:
+  sure_net:
+    name: sure_network
+    driver: bridge

@@ -38,7 +38,17 @@ Join us!
 
 ## Hosting Sure
 
-Sure is a fully working personal finance app that can be [self hosted with Docker](docs/hosting/docker.md).
+Sure is a fully working personal finance app that can be self-hosted.
+
+### Deployment Options
+
+Choose your preferred deployment method:
+
+- **[Coolify (Recommended)](COOLIFY_QUICKSTART.md)** - Easiest deployment with web UI, automatic SSL, and one-click updates
+- **[Manual Docker Compose](docs/hosting/docker.md)** - Full control with command-line deployment
+- **[Deployment Comparison](docs/hosting/deployment-comparison.md)** - Help choosing the right method
+
+**Not sure which to choose?** Start with [Coolify](COOLIFY_QUICKSTART.md) for the easiest setup experience!
 
 ## Forking and Attribution
 
